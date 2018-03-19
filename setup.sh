@@ -6,3 +6,5 @@ mkdir -p var/images
 mkdir var/landmarks
 mkdir var/data
 touch data/averages.json
+
+echo "[]" > averages.json

@@ -1,4 +1,6 @@
 import os
+import json
+import statistics
 
 from imutils import face_utils
 import numpy as np
@@ -6,14 +8,14 @@ import argparse
 import dlib
 import cv2
 
-from config import IMG_PATH, LANDS_PATH
+from config import IMG_PATH, LANDS_PATH, AVERAGES_PATH
 from helpers import pp, throw
 
 
 def faces(img):
     """ Returns dlib.rectangles containing rectangles of faces """
     if not isinstance(img, np.ndarray):
-        throw('img param must be of type np.array')
+        throw("Expected numpy.array got " + type(img))
     if not os.path.isfile(LANDS_PATH):
         throw(LANDS_PATH + " doesn't exist")
 
@@ -25,32 +27,33 @@ def faces(img):
 
 def landmarks(img, face):
     if not isinstance(face, dlib.rectangle):
-        throw('face param must be of type dlib.rectangle')
+        throw("Expected dlib.rectangle got " + type(face))
     predictor = dlib.shape_predictor(LANDS_PATH)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     dlib_shape = predictor(gray, face)
     return face_utils.shape_to_np(dlib_shape)
 
-def all_distances(lands, as_dicts=True):
+def all_distances(lands, as_dict=True):
     """ Returns distances from each point of landmarks to every other point.
     Returning format:
-    if as_dicts is True
+    if as_dict is True
     {1: {2: 3}} - from 1st landmark to 2nd the distance is 1
-    if as_dicts is False
+    if as_dict is False
     [(1, 2, 3)] 
     """
-    if as_dicts:
+    if as_dict:
         distances = {}
     else:
         distances = []
     length = len(lands)
     for i in range(length):
         pfrom = lands[i]
-        distances[i] = {}
+        if as_dict:
+            distances[i] = {}
         for j in range(i + 1, length):
             pto = lands[j]
             dis = _distance(pfrom, pto)
-            if as_dicts:
+            if as_dict:
                 distances[i][j] = dis
             else:
                 distances.append((i, j, dis))
@@ -62,8 +65,23 @@ def _distance(p1, p2):
     return ((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2) ** 0.5
 
 
+def stdeviation(data):
+    """ Returns variance of the data """
+    return statistics.stdev(data)
+    
+
+def feed_average(val):
+    """ Writes into averages the new value - val """
+    with open(AVERAGES_PATH, 'r+') as avgs:
+        for line in avgs:
+            pass
+        avgs.write(str(val) + "\n")
+
+
 def ratios(distances):
     # TODO:
+    if not isinstance(distances, dict):
+        throw("Expected dict got " + type(distances))
     ratios = []
     for p1_idx, vals1 in distances.items():
         for p2_idx, dis in vals1.items():
