@@ -17,5 +17,6 @@ def throw(msg):
 def cvwait(time=0):
     cv2.waitKey(time)
 
+
 def sl(seconds):
     sleep(seconds)

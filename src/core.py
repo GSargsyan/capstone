@@ -1,20 +1,18 @@
 import os
-import sys
 import json
-import itertools
 import statistics
 from imutils import face_utils
 
 import numpy as np
-import argparse
 import dlib
 import cv2
 
-from config import IMG_PATH, LANDS_PATH, RATIOS_PATH, RATIOS_AVG_PATH, RATIOS_STDS_PATH
-from helpers import pp, throw, cvwait
+from config import LANDS_PATH, RATIOS_PATH, RATIOS_AVG_PATH, RATIOS_STDS_PATH
+from helpers import pp, throw
 
 
 NUM_OF_RATIOS = 100232
+
 
 def faces(img):
     """ Returns dlib.rectangles containing rectangles of faces """
@@ -158,7 +156,6 @@ def show_img(img, name='default'):
 
 
 def compare_with_avg(img):
-    # TODO: finilize the function
     fs = faces()
     lands = landmarks(img, fs[0])
     rs = [x[3] for x in ratios(lands)]
@@ -167,7 +164,8 @@ def compare_with_avg(img):
         means = json.load(avgs_file)
     with open(RATIOS_STDS_PATH, 'r') as stds_file:
         stds = json.load(stds_file)
-    z_scores = [z_score(rs[i], means[i], stds[i]) for i in range(NUM_OF_RATIOS)]
+    z_scores = [z_score(rs[i], means[i], stds[i])
+                for i in range(NUM_OF_RATIOS)]
     print(z_scores)
 
 
@@ -176,16 +174,16 @@ def z_score(x, u, o):
 
 
 def lands_with_names(lands):
-     return [{
-	    "chin": lands[0:17],
-	    "left_eyebrow": lands[17:22],
-	    "right_eyebrow": lands[22:27],
-	    "nose_bridge": lands[27:31],
-	    "nose_tip": lands[31:36],
-	    "left_eye": lands[36:42],
-	    "right_eye": lands[42:48],
-	    "top_lip": lands[48:55] + [lands[64]] + [lands[63]] +\
-                    [lands[62]] + [lands[61]] + [lands[60]],
-	    "bottom_lip": lands[54:60] + [lands[48]] + [lands[60]] +\
-                    [lands[67]] + [lands[66]] + [lands[65]] + [lands[64]]
-            }]
+    return [{
+        "chin": lands[0:17],
+        "left_eyebrow": lands[17:22],
+        "right_eyebrow": lands[22:27],
+        "nose_bridge": lands[27:31],
+        "nose_tip": lands[31:36],
+        "left_eye": lands[36:42],
+        "right_eye": lands[42:48],
+        "top_lip": lands[48:55] + [lands[64]] + [lands[63]] +
+        [lands[62]] + [lands[61]] + [lands[60]],
+        "bottom_lip": lands[54:60] + [lands[48]] + [lands[60]] +
+        [lands[67]] + [lands[66]] + [lands[65]] + [lands[64]]
+     }]
