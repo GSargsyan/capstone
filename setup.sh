@@ -5,6 +5,6 @@ pip3 install -r requirements.txt
 mkdir -p var/images
 mkdir var/landmarks
 mkdir var/data
-touch data/averages.json
-
-echo "[]" > averages.json
+touch var/data/ratios.json
+touch var/data/ratios_avg.json
+touch var/data/ratios_stdevs.json

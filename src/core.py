@@ -1,21 +1,25 @@
 import os
+import sys
 import json
+import itertools
 import statistics
-
 from imutils import face_utils
+
 import numpy as np
 import argparse
 import dlib
 import cv2
 
-from config import IMG_PATH, LANDS_PATH, AVERAGES_PATH
-from helpers import pp, throw
+from config import IMG_PATH, LANDS_PATH, RATIOS_PATH, RATIOS_AVG_PATH, RATIOS_STDS_PATH
+from helpers import pp, throw, cvwait
 
+
+NUM_OF_RATIOS = 100232
 
 def faces(img):
     """ Returns dlib.rectangles containing rectangles of faces """
     if not isinstance(img, np.ndarray):
-        throw("Expected numpy.array got " + type(img))
+        throw("Expected numpy.array got " + type(img).__name__)
     if not os.path.isfile(LANDS_PATH):
         throw(LANDS_PATH + " doesn't exist")
 
@@ -25,21 +29,23 @@ def faces(img):
 
     return faces
 
+
 def landmarks(img, face):
     if not isinstance(face, dlib.rectangle):
-        throw("Expected dlib.rectangle got " + type(face))
+        throw("Expected dlib.rectangle got " + type(face).__name__)
     predictor = dlib.shape_predictor(LANDS_PATH)
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     dlib_shape = predictor(gray, face)
     return face_utils.shape_to_np(dlib_shape)
 
-def all_distances(lands, as_dict=True):
+
+def all_distances(lands, as_dict=True, allow_repeats=False):
     """ Returns distances from each point of landmarks to every other point.
     Returning format:
     if as_dict is True
     {1: {2: 3}} - from 1st landmark to 2nd the distance is 1
     if as_dict is False
-    [(1, 2, 3)] 
+    [(1, 2, 3)]
     """
     if as_dict:
         distances = {}
@@ -50,7 +56,8 @@ def all_distances(lands, as_dict=True):
         pfrom = lands[i]
         if as_dict:
             distances[i] = {}
-        for j in range(i + 1, length):
+        from_index = 0 if allow_repeats else i + 1
+        for j in range(from_index, length):
             pto = lands[j]
             dis = _distance(pfrom, pto)
             if as_dict:
@@ -65,42 +72,107 @@ def _distance(p1, p2):
     return ((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2) ** 0.5
 
 
+def extract_rect(img, face):
+    npf = _dlib_rect_to_np(face)
+    return img[npf[1]:npf[1] + npf[3], npf[0]:npf[0] + npf[2]]
+
+
 def stdeviation(data):
-    """ Returns variance of the data """
+    """ Returns standard deviation of the data """
     return statistics.stdev(data)
-    
-
-def feed_average(val):
-    """ Writes into averages the new value - val """
-    with open(AVERAGES_PATH, 'r+') as avgs:
-        for line in avgs:
-            pass
-        avgs.write(str(val) + "\n")
 
 
-def ratios(distances):
-    # TODO:
-    if not isinstance(distances, dict):
-        throw("Expected dict got " + type(distances))
+def feed_ratio(val):
+    """ Writes into ratio the new value - val
+    The file is a line by line json objects
+    """
+    with open(RATIOS_PATH, 'a') as ratios:
+        json.dump(val, ratios)
+        ratios.write("\n")
+
+
+def ratios(all_dists):
+    if not isinstance(all_dists, dict):
+        throw("Expected dict got " + type(all_dists).__name__)
+
+    length = len(all_dists)
     ratios = []
-    for p1_idx, vals1 in distances.items():
-        for p2_idx, dis in vals1.items():
-            for p3_idx, vals2 in distances.items():
-                ratio = 0
-                if p3_idx != p2_idx and p3_idx != p1_idx:
-                    if p3_idx < p2_idx:
-                        ratio = dis / vals2[p2_idx]
-                    elif p3_idx == p2_idx:
-                        ratios.extend([
-                            (p1_idx, p2_idx, i, dis / v)\
-                                    for i, v in vals2.items()])
-                if ratio != 0:
-                    ratios.append((p1_idx, p2_idx, p3_idx, ratio))
+    for i in range(length):
+        for j in range(i + 1, length):
+            dist_i_j = all_dists[i][j]
+            if dist_i_j == 0:
+                continue
+            for k in range(j + 1, length):
+                dist_j_k = all_dists[j][k]
+                dist_i_k = all_dists[i][k]
+                if dist_i_k == 0 or dist_j_k == 0:
+                    continue
+
+                by_j = dist_i_j / dist_j_k
+                by_k = dist_j_k / dist_i_k
+                ratios.append((i, k, j, by_k))
+                ratios.append((i, j, k, by_j))
+    return ratios
 
 
-def dlib_rect_to_np(rect):
+def calc_avg_ratios():
+    sums = np.zeros(NUM_OF_RATIOS)
+    with open(RATIOS_PATH, 'r') as ratios:
+        for line_count, line in enumerate(ratios):
+            curr_ratios = json.loads(line)
+            for n, ratio in enumerate(curr_ratios):
+                sums[n] += ratio[3]
+
+    avgs = [0 for i in range(NUM_OF_RATIOS)]
+    for i, j in enumerate(sums):
+        avgs[i] = j / (line_count + 1)
+    with open(RATIOS_AVG_PATH, 'w') as avgs_file:
+        json.dump(avgs, avgs_file)
+
+
+def calc_ratio_stds():
+    """ Calculate standard deviations of ratios and write them into file.
+    Will be total (global NUM_OF_RATIOS)
+    """
+    data = {i: [] for i in range(NUM_OF_RATIOS)}
+    with open(RATIOS_PATH, 'r') as ratios:
+        for line_count, line in enumerate(ratios):
+            curr_data = [x[3] for x in json.loads(line)]
+            for n, ratio in enumerate(curr_data):
+                data[n].append(ratio)
+            print("Num of lines processed: " + str(line_count))
+    print("Calculating standard deviations...")
+    stds = [stdeviation(data[i]) for i in range(NUM_OF_RATIOS)]
+    with open(RATIOS_STDS_PATH, 'w') as stds_file:
+        json.dump(stds, stds_file)
+
+
+def _dlib_rect_to_np(rect):
     """ Format: (x, y, width, height) - tuple """
     return face_utils.rect_to_bb(rect)
+
+
+def show_img(img, name='default'):
+    cv2.imshow(name, img)
+    cv2.wait()
+
+
+def compare_with_avg(img):
+    # TODO: finilize the function
+    fs = faces()
+    lands = landmarks(img, fs[0])
+    rs = [x[3] for x in ratios(lands)]
+    pp(len(rs))
+    with open(RATIOS_AVG_PATH, 'r') as avgs_file:
+        means = json.load(avgs_file)
+    with open(RATIOS_STDS_PATH, 'r') as stds_file:
+        stds = json.load(stds_file)
+    z_scores = [z_score(rs[i], means[i], stds[i]) for i in range(NUM_OF_RATIOS)]
+    print(z_scores)
+
+
+def z_score(x, u, o):
+    return (x - u) / o
 
 
 def lands_with_names(lands):

@@ -1,4 +1,7 @@
 import pprint
+from time import sleep
+
+import cv2
 
 
 def pp(obj, indent=4):
@@ -10,3 +13,9 @@ def pp(obj, indent=4):
 def throw(msg):
     raise Exception(msg)
 
+
+def cvwait(time=0):
+    cv2.waitKey(time)
+
+def sl(seconds):
+    sleep(seconds)
