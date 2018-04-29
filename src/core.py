@@ -41,7 +41,7 @@ def all_distances(lands, as_dict=True, allow_repeats=False):
     """ Returns distances from each point of landmarks to every other point.
     Returning format:
     if as_dict is True
-    {1: {2: 3}} - from 1st landmark to 2nd the distance is 1
+    {1: {2: 3}} - from 1st landmark to 2nd the distance is 3
     if as_dict is False
     [(1, 2, 3)]
     """
@@ -98,16 +98,17 @@ def ratios(all_dists):
     for i in range(length):
         for j in range(i + 1, length):
             dist_i_j = all_dists[i][j]
-            if dist_i_j == 0:
+            if i == j:
                 continue
             for k in range(j + 1, length):
+                if i == k or j == k:
+                    continue
                 dist_j_k = all_dists[j][k]
                 dist_i_k = all_dists[i][k]
-                if dist_i_k == 0 or dist_j_k == 0:
-                    continue
 
-                by_j = dist_i_j / dist_j_k
-                by_k = dist_j_k / dist_i_k
+                by_j = dist_i_j / dist_j_k if dist_j_k != 0 else 0
+                by_k = dist_j_k / dist_i_k if dist_i_k != 0 else 0
+
                 ratios.append((i, k, j, by_k))
                 ratios.append((i, j, k, by_j))
     return ratios
@@ -138,8 +139,8 @@ def calc_ratio_stds():
             curr_data = [x[3] for x in json.loads(line)]
             for n, ratio in enumerate(curr_data):
                 data[n].append(ratio)
-            print("Num of lines processed: " + str(line_count))
-    print("Calculating standard deviations...")
+            pp("Num of lines processed: " + str(line_count))
+    pp("Calculating standard deviations...")
     stds = [stdeviation(data[i]) for i in range(NUM_OF_RATIOS)]
     with open(RATIOS_STDS_PATH, 'w') as stds_file:
         json.dump(stds, stds_file)
@@ -156,17 +157,18 @@ def show_img(img, name='default'):
 
 
 def compare_with_avg(img):
-    fs = faces()
+    fs = faces(img)
     lands = landmarks(img, fs[0])
-    rs = [x[3] for x in ratios(lands)]
-    pp(len(rs))
+    all_dists = all_distances(lands, allow_repeats=True)
+    rs = [x[3] for x in ratios(all_dists)]
+
     with open(RATIOS_AVG_PATH, 'r') as avgs_file:
         means = json.load(avgs_file)
     with open(RATIOS_STDS_PATH, 'r') as stds_file:
         stds = json.load(stds_file)
     z_scores = [z_score(rs[i], means[i], stds[i])
                 for i in range(NUM_OF_RATIOS)]
-    print(z_scores)
+    pp(z_scores)
 
 
 def z_score(x, u, o):

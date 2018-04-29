@@ -75,3 +75,19 @@
 # def _feed_ratios(img_names):
 #     for img_name in img_names:
 #         _feed_ratio(img_name)
+
+
+# Use this to calculate lengths
+#     """
+#     with open(RATIOS_PATH, 'r') as r:
+#         for line in r:
+#             pp(len(json.loads(line)))
+#     """
+
+# img_names = (
+#         'me-frontal.jpg',
+#         'hd-girl.jpg',
+#         'hd-boy.jpg',
+#         'me.jpg',
+#         'us.jpg',
+#         'mona-lisa.jpg')
