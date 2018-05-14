@@ -1,4 +1,5 @@
 import os
+import math
 import json
 import statistics
 from imutils import face_utils
@@ -139,8 +140,8 @@ def calc_ratio_stds():
             curr_data = [x[3] for x in json.loads(line)]
             for n, ratio in enumerate(curr_data):
                 data[n].append(ratio)
-            pp("Num of lines processed: " + str(line_count))
-    pp("Calculating standard deviations...")
+            print("Num of lines processed: " + str(line_count))
+    print("Calculating standard deviations...")
     stds = [stdeviation(data[i]) for i in range(NUM_OF_RATIOS)]
     with open(RATIOS_STDS_PATH, 'w') as stds_file:
         json.dump(stds, stds_file)
@@ -168,11 +169,13 @@ def compare_with_avg(img):
         stds = json.load(stds_file)
     z_scores = [z_score(rs[i], means[i], stds[i])
                 for i in range(NUM_OF_RATIOS)]
-    pp(z_scores)
+    score = sum(z_scores)
+    mean_score = score / len(z_scores)
+    pp(mean_score)
 
 
 def z_score(x, u, o):
-    return (x - u) / o
+    return abs((x - u) / o)
 
 
 def lands_with_names(lands):
