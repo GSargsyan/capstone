@@ -1,8 +1,14 @@
 APP_PATH = '/var/www/Capstone/'
 LANDS_PATH = APP_PATH + 'var/landmarks/face_landmarks_68.dat'
+
 RATIOS_PATH = APP_PATH + 'var/data/ratios.json'
 RATIOS_AVG_PATH = APP_PATH + 'var/data/ratios_avg.json'
 RATIOS_STDS_PATH = APP_PATH + 'var/data/ratios_stdevs.json'
+
+ANGLES_PATH = APP_PATH + 'var/data/angles.json'
+ANGLES_AVG_PATH = APP_PATH + 'var/data/angles_avg.json'
+ANGLES_STDS_PATH = APP_PATH + 'var/data/angles_stdevs.json'
+
 IMG_PATH = APP_PATH + 'var/img/'
 DATASET_PATH = IMG_PATH + 'dataset1/'
 

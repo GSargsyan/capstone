@@ -1,12 +1,16 @@
 import cv2
 
 import setup
-from core import compare_with_avg
-from config import IMG_PATH
+from core import equalize_red
+from config import DATASET_PATH
 
 """ --- MAIN --- """
 
-img_name = '.jpg'
+img1_name = DATASET_PATH + '1-11.jpg'
+img2_name = DATASET_PATH + '2-11.jpg'
+
+img1 = cv2.imread(img1_name)
+img2 = cv2.imread(img2_name)
+
 if __name__ == '__main__':
-    img = cv2.imread(IMG_PATH + img_name)
-    compare_with_avg(img)
+    new = equalize_red(img1, img2)

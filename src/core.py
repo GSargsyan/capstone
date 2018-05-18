@@ -3,16 +3,19 @@ import math
 import json
 import statistics
 from imutils import face_utils
+from copy import deepcopy
 
 import numpy as np
 import dlib
 import cv2
 
-from config import LANDS_PATH, RATIOS_PATH, RATIOS_AVG_PATH, RATIOS_STDS_PATH
+from config import LANDS_PATH, RATIOS_PATH,\
+        RATIOS_AVG_PATH, RATIOS_STDS_PATH, ANGLES_PATH
 from helpers import pp, throw
 
 
 NUM_OF_RATIOS = 100232
+NUM_OF_ANGLES = 100232
 
 
 def faces(img):
@@ -90,6 +93,15 @@ def feed_ratio(val):
         ratios.write("\n")
 
 
+def feed_angle(ang):
+    """ Writes into angles the new angle - ang
+    The file is a line by line json objects
+    """
+    with open(ANGLES_PATH, 'a') as angles:
+        json.dump(ang, angles)
+        angles.write("\n")
+
+
 def ratios(all_dists):
     if not isinstance(all_dists, dict):
         throw("Expected dict got " + type(all_dists).__name__)
@@ -113,6 +125,22 @@ def ratios(all_dists):
                 ratios.append((i, k, j, by_k))
                 ratios.append((i, j, k, by_j))
     return ratios
+
+
+def calc_avg_angles():
+    # TODO: To Be Continued...
+    sums = np.zeros(NUM_OF_ANGLES)
+    with open(ANGLES_PATH, 'r') as angles:
+        for line_count, line in enumerate(angles):
+            curr_angles = json.loads(line)
+            for n, angle in enumerate(curr_angles):
+                if is_number(angle[3]):
+                    sums[n] += angle[3]
+
+    for i, j in enumerate(sums):
+        avgs.append(j / (line_count + 1))
+    with open(ANGLES_AVG_PATH, 'w') as avgs_file:
+        json.dump(avgs, avgs_file)
 
 
 def calc_avg_ratios():
@@ -192,3 +220,130 @@ def lands_with_names(lands):
         "bottom_lip": lands[54:60] + [lands[48]] + [lands[60]] +
         [lands[67]] + [lands[66]] + [lands[65]] + [lands[64]]
      }]
+
+
+def lands_from_img(img):
+    dlib_face = faces(img)[0]
+    return landmarks(img, dlib_face)
+
+
+def angles(lands):
+    length = len(lands) # 68
+    angles = []
+    for i in range(length):
+        for j in range(i + 1, length):
+            for k in range(j + 1, length):
+                ang = angle(lands[i], lands[j], lands[k])
+                angles.append((i, j, k, ang))
+    return angles
+
+
+def angle(a, b, c):
+    """ Returns angle in degrees between 
+    line 1 and line 2 created by joining p1 to p2 and p2 to p3
+    """
+    ba = a - b
+    bc = c - b
+    cosine_angle = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc))
+    angle = np.arccos(cosine_angle)
+    return np.degrees(angle)
+
+
+def to_hsv(img):
+    return cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+
+def to_rgb(img):
+    return cv2.cvtColor(img, cv2.COLOR_HSV2BGR)
+
+
+def equalize_red(img1, img2):
+    height1, width1, _ = img1.shape
+    height2, width2, _ = img2.shape
+    if height1 != height2 or width1 != width2:
+        throw('img1 and img2 should have the same size')
+
+    hsv1 = to_hsv(img1)
+    hsv2 = to_hsv(img2)
+
+    red_sum1 = [0 for _ in range(255)]
+    red_sum2 = [0 for _ in range(255)]
+
+    for i in range(height1):
+        for j in range(width1):
+            b1, g1, r1 = img1[i, j]
+            b2, g2, r2 = img2[i, j]
+            red_sum1[r1] += 1
+            red_sum2[r2] += 1
+            #hsv1 = to_hsv(img1)
+            #h, s, v = hsv[i, j]
+            #hsv[i, j] = np.array([h, s, v], dtype=np.uint8)
+    cumul1 = _cumul(red_sum1)
+    cumul2 = _cumul(red_sum2)
+
+    _adjust(cumul1, cumul2)
+
+    return to_rgb(hsv1)
+
+
+def _cumul(d):
+    """ Cumulates the dict """
+    c = 0
+    for val, count in enumerate(d):
+        d[val] = count + c
+        c += count
+    return d
+
+
+def _adjust(hist1, hist2):
+    """ Adjusts cumul histogram 1 to hitogram 2 """
+    # TODO: Continue
+    adjusted = [0 for _ in range(255)]
+    for val, count in enumerate(hist2):
+        closest = hist1.index(min([abs(hist1[i] - count) for i in range(255)]))
+        adjusted[val] = 
+        hist1[closest] = 
+
+
+def extract_face(img):
+    # TODO: Continue
+    lands = lands_from_img(img)
+
+
+def bot_0(x):
+    return 0.9848 * x - 6.7474
+def top_0(x):
+    return - 0.0009 * x * x + 1.1917 * x - 4.0146
+
+def bot_1(x):
+    return - 0.0009 * x * x + 1.1917 * x - 4.0146
+def top_1(x):
+    return - 0.0011 * x * x + 1.2262 * x + 4.0264
+
+def bot_2(x):
+    return - 0.0011 * x * x + 1.2262 * x + 4.0264
+def top_2(x):
+    return - 0.0013 * x * x + 1.2608 * x + 12.067
+
+def bot_3(x):
+    return - 0.0013 * x * x + 1.2608 * x + 12.067
+def top_3(x):
+    return - 0.0026 * x * x + 1.5713 * x + 14.8
+
+
+def layer(img, layer_no):
+    tmp = deepcopy(img)
+    top_func = eval('top_' + str(layer_no))
+    bot_func = eval('bot_' + str(layer_no))
+    h, w, c = tmp.shape
+    for i in range(h):
+        for j in range(w):
+            px = tmp[i, j]
+            b, g, r = px
+            rb = (int(r) + int(b)) / 2
+
+            if b < g and g < r and rb >= bot_func(g) and rb <= top_func(g):
+                tmp[i, j] = 0, 0, 0
+            else:
+                tmp[i, j] = 255, 255, 255
+    cv2.imshow('layer_' + str(layer_no), tmp)
