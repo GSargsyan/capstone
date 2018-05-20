@@ -1,17 +1,14 @@
+import setup
 import cv2
-import numpy as np
-import os
-from imutils import resize
-
+from core import layer
+from config import DATASET_PATH
 
 """ MAIN """
-dataset_path = '/home/grigor/Homeworks/imgprocessing/project3/dataset1/'
-celebs_path = '/home/grigor/Homeworks/imgprocessing/project3/celebs/'
+orig = cv2.imread('original.jpg')
+equa = cv2.imread('equalized.jpg')
+refe = cv2.imread('reference.jpg')
 
-layer_no = 1
-for img_name in os.listdir(dataset_path ):
-    print(dataset_path + img_name)
-    img = cv2.imread(dataset_path  + img_name)
-    img = resize(img, width=500)
-    cv2.imshow('original', img)
-    layer(img, layer_no)
+layer_no = 0
+tmp = layer(refe, layer_no)
+
+cv2.imwrite('reference_layer_0.jpg', tmp)

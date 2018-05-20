@@ -12,6 +12,7 @@ import cv2
 from config import LANDS_PATH, RATIOS_PATH,\
         RATIOS_AVG_PATH, RATIOS_STDS_PATH, ANGLES_PATH
 from helpers import pp, throw
+from utils import adjust, cumul, match_hists
 
 
 NUM_OF_RATIOS = 100232
@@ -263,46 +264,35 @@ def equalize_red(img1, img2):
     if height1 != height2 or width1 != width2:
         throw('img1 and img2 should have the same size')
 
-    hsv1 = to_hsv(img1)
-    hsv2 = to_hsv(img2)
+    red_hist1 = [0 for _ in range(255)]
+    red_hist2 = [0 for _ in range(255)]
 
-    red_sum1 = [0 for _ in range(255)]
-    red_sum2 = [0 for _ in range(255)]
-
+    # compute red color histograms
     for i in range(height1):
         for j in range(width1):
             b1, g1, r1 = img1[i, j]
             b2, g2, r2 = img2[i, j]
-            red_sum1[r1] += 1
-            red_sum2[r2] += 1
+            red_hist1[r1] += 1
+            red_hist2[r2] += 1
             #hsv1 = to_hsv(img1)
             #h, s, v = hsv[i, j]
             #hsv[i, j] = np.array([h, s, v], dtype=np.uint8)
-    cumul1 = _cumul(red_sum1)
-    cumul2 = _cumul(red_sum2)
+    cumul1 = cumul(red_hist1)
+    cumul2 = cumul(red_hist2)
 
-    _adjust(cumul1, cumul2)
+    adjusted = match_hists(cumul1, cumul2)
 
-    return to_rgb(hsv1)
-
-
-def _cumul(d):
-    """ Cumulates the dict """
-    c = 0
-    for val, count in enumerate(d):
-        d[val] = count + c
-        c += count
-    return d
+    return repaint_red(img1, adjusted)
 
 
-def _adjust(hist1, hist2):
-    """ Adjusts cumul histogram 1 to hitogram 2 """
-    # TODO: Continue
-    adjusted = [0 for _ in range(255)]
-    for val, count in enumerate(hist2):
-        closest = hist1.index(min([abs(hist1[i] - count) for i in range(255)]))
-        adjusted[val] = 
-        hist1[closest] = 
+def repaint_red(img, mapping):
+    h, w, c = img.shape
+    for i in range(h):
+        for j in range(w):
+            b, g, r = img[i, j]
+            r = mapping[r]
+            img[i, j] = b, g, r
+    return img
 
 
 def extract_face(img):
@@ -346,4 +336,4 @@ def layer(img, layer_no):
                 tmp[i, j] = 0, 0, 0
             else:
                 tmp[i, j] = 255, 255, 255
-    cv2.imshow('layer_' + str(layer_no), tmp)
+    return tmp
