@@ -1,5 +1,4 @@
 import os
-import math
 import json
 import statistics
 from imutils import face_utils
@@ -10,13 +9,13 @@ import dlib
 import cv2
 
 from config import LANDS_PATH, RATIOS_PATH,\
-        RATIOS_AVG_PATH, RATIOS_STDS_PATH, ANGLES_PATH
-from helpers import pp, throw
-from utils import adjust, cumul, match_hists
+    RATIOS_AVG_PATH, RATIOS_STDS_PATH, ANGLES_PATH, ANGLES_AVG_PATH
+from helpers import throw, is_number
+from utils import cumul, match_hists
 
 
 NUM_OF_RATIOS = 100232
-NUM_OF_ANGLES = 100232
+NUM_OF_ANGLES = 50116
 
 
 def faces(img):
@@ -137,7 +136,7 @@ def calc_avg_angles():
             for n, angle in enumerate(curr_angles):
                 if is_number(angle[3]):
                     sums[n] += angle[3]
-
+    avgs = []
     for i, j in enumerate(sums):
         avgs.append(j / (line_count + 1))
     with open(ANGLES_AVG_PATH, 'w') as avgs_file:
@@ -198,9 +197,8 @@ def compare_with_avg(img):
         stds = json.load(stds_file)
     z_scores = [z_score(rs[i], means[i], stds[i])
                 for i in range(NUM_OF_RATIOS)]
-    score = sum(z_scores)
-    mean_score = score / len(z_scores)
-    pp(mean_score)
+    mean_score = sum(z_scores) / len(z_scores)
+    return mean_score
 
 
 def z_score(x, u, o):
@@ -220,7 +218,7 @@ def lands_with_names(lands):
         [lands[62]] + [lands[61]] + [lands[60]],
         "bottom_lip": lands[54:60] + [lands[48]] + [lands[60]] +
         [lands[67]] + [lands[66]] + [lands[65]] + [lands[64]]
-     }]
+    }]
 
 
 def lands_from_img(img):
@@ -229,18 +227,21 @@ def lands_from_img(img):
 
 
 def angles(lands):
-    length = len(lands) # 68
-    angles = []
+    """ Returns dict of angles made by joining
+    all combinations of 3 points from landmarks
+    """
+    length = len(lands)  # 68
+    angles = {}
     for i in range(length):
         for j in range(i + 1, length):
             for k in range(j + 1, length):
                 ang = angle(lands[i], lands[j], lands[k])
-                angles.append((i, j, k, ang))
+                angles[(i, j, k)] = ang
     return angles
 
 
 def angle(a, b, c):
-    """ Returns angle in degrees between 
+    """ Returns angle in degrees between
     line 1 and line 2 created by joining p1 to p2 and p2 to p3
     """
     ba = a - b
@@ -274,9 +275,9 @@ def equalize_red(img1, img2):
             b2, g2, r2 = img2[i, j]
             red_hist1[r1] += 1
             red_hist2[r2] += 1
-            #hsv1 = to_hsv(img1)
-            #h, s, v = hsv[i, j]
-            #hsv[i, j] = np.array([h, s, v], dtype=np.uint8)
+            # hsv1 = to_hsv(img1)
+            # h, s, v = hsv[i, j]
+            # hsv[i, j] = np.array([h, s, v], dtype=np.uint8)
     cumul1 = cumul(red_hist1)
     cumul2 = cumul(red_hist2)
 
@@ -295,28 +296,34 @@ def repaint_red(img, mapping):
     return img
 
 
-def extract_face(img):
-    # TODO: Continue
-    lands = lands_from_img(img)
-
-
 def bot_0(x):
     return 0.9848 * x - 6.7474
+
+
 def top_0(x):
     return - 0.0009 * x * x + 1.1917 * x - 4.0146
 
+
 def bot_1(x):
     return - 0.0009 * x * x + 1.1917 * x - 4.0146
+
+
 def top_1(x):
     return - 0.0011 * x * x + 1.2262 * x + 4.0264
 
+
 def bot_2(x):
     return - 0.0011 * x * x + 1.2262 * x + 4.0264
+
+
 def top_2(x):
     return - 0.0013 * x * x + 1.2608 * x + 12.067
 
+
 def bot_3(x):
     return - 0.0013 * x * x + 1.2608 * x + 12.067
+
+
 def top_3(x):
     return - 0.0026 * x * x + 1.5713 * x + 14.8
 

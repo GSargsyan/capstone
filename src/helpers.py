@@ -20,3 +20,11 @@ def cvwait(time=0):
 
 def sl(seconds):
     sleep(seconds)
+
+
+def is_number(s):
+    try:
+        float(s)
+    except BaseException:
+        return False
+    return True

@@ -1,5 +1,7 @@
-import cv2
+from random import randrange
 import numpy as np
+import cv2
+
 from helpers import pp
 
 
@@ -35,18 +37,20 @@ def adjust(hist1, hist2):
         #del hist2[closest_idx]
     return adjusted
 
+
 def _closest(e, l):
     """ Finds the element and its index, closest to e, in l """
     closest = None
     closest_idx = None
     min_diff = float('inf')
     for i, j in enumerate(l):
-        diff = abs(j - e) 
+        diff = abs(j - e)
         if diff < min_diff:
             min_diff = abs(j - e)
             closest = j
             closest_idx = i
     return closest, closest_idx
+
 
 def match_hists(hist1, hist2):
     k = len(hist1)
@@ -60,3 +64,14 @@ def match_hists(hist1, hist2):
             if j < 0 or hist1[a] > hist2[j]:
                 break
     return mapping
+
+
+def draw_lines(img, p1, p2, p3):
+    """ Draws a line on img in random color made by
+    joinging p1 to p2 and p2 to p3
+    """
+    r, g, b = randrange(0, 255, 1), randrange(0, 255, 1), randrange(0, 255, 1)
+    pp(p1)
+    print(b, g, r)
+    cv2.line(img, p1, p2, (b, g, r,))
+    cv2.line(img, p2, p3, (b, g, r,))
